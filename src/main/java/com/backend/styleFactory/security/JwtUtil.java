@@ -1,9 +1,10 @@
 package com.backend.styleFactory.security;
 
-import com.backend.styleFactory.model.Usuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -11,56 +12,51 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Componente de utilidad para operaciones con tokens JWT.
- * Proporciona métodos para generar, validar y extraer información
- * de tokens de acceso.
- */
 @Component
 public class JwtUtil {
 
-    // Clave secreta utilizada para firmar los tokens.
-    // En producción se debe externalizar en variables de entorno o properties.
-    private static final String SECRET = "claveSecretaSuperSeguraParaStyleFactory2026!";
-    private static final long EXPIRATION_MS = 86400000; // 24 horas
+    @Value("${jwt.secret}")
+    private String secret;
 
-    /**
-     * Obtiene la clave de firma a partir de la constante SECRET.
-     *
-     * @return SecretKey para HMAC-SHA256
-     */
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
-    }
+    @Value("${jwt.expiration}")
+    private long expiration;
 
-    /**
-     * Genera un token JWT firmado que incluye el correo como subject
-     * y claims adicionales con el rol y el nombre del usuario.
-     *
-     * @param usuario Entidad que representa al usuario autenticado
-     * @return Token JWT compacto
-     */
-    public String generateToken(Usuario usuario) {
+    // Genera el token recibiendo UserDetails
+    public String generarToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("rol", usuario.getRol().name());
-        claims.put("nombre", usuario.getNombre());
-
+        claims.put("rol", userDetails.getAuthorities()
+                .iterator().next().getAuthority());
         return Jwts.builder()
                 .claims(claims)
-                .subject(usuario.getCorreo())
+                .subject(userDetails.getUsername())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    /**
-     * Extrae el cuerpo (claims) de un token JWT verificando su firma.
-     *
-     * @param token Token JWT
-     * @return Claims contenidos en el token
-     */
-    private Claims extractAllClaims(String token) {
+    // Extrae el correo del token
+    public String extraerCorreo(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    // Extrae el rol del token
+    public String extraerRol(String token) {
+        return getClaims(token).get("rol", String.class);
+    }
+
+    // Valida si el token corresponde al usuario y no ha expirado
+    public boolean validarToken(String token, UserDetails userDetails) {
+        String correo = extraerCorreo(token);
+        return correo.equals(userDetails.getUsername()) && !tokenExpirado(token);
+    }
+
+    // Métodos privados
+    private boolean tokenExpirado(String token) {
+        return getClaims(token).getExpiration().before(new Date());
+    }
+
+    private Claims getClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
@@ -68,28 +64,19 @@ public class JwtUtil {
                 .getPayload();
     }
 
-    /**
-     * Obtiene el nombre de usuario (correo) almacenado en el subject del token.
-     *
-     * @param token Token JWT
-     * @return Correo del usuario
-     */
-    public String extractUsername(String token) {
-        return extractAllClaims(token).getSubject();
+    // Usa la misma lógica del compañero — convierte hex a bytes
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = hexToBytes(secret);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    /**
-     * Verifica la validez del token comprobando su firma y fecha de expiración.
-     *
-     * @param token Token JWT a validar
-     * @return true si el token es válido, false en caso contrario
-     */
-    public boolean isTokenValid(String token) {
-        try {
-            extractAllClaims(token);
-            return true;
-        } catch (Exception e) {
-            return false;
+    private byte[] hexToBytes(String hex) {
+        int length = hex.length();
+        byte[] bytes = new byte[length / 2];
+        for (int i = 0; i < length; i += 2) {
+            bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i + 1), 16));
         }
+        return bytes;
     }
 }
