@@ -3,6 +3,7 @@ package com.backend.styleFactory.config;
 import com.backend.styleFactory.security.JwtFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -43,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // Endpoints restringidos por rol
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/servicios/**").permitAll()
                         .requestMatchers("/empleados/**").hasAnyRole("ADMIN", "EMPLEADO")
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
