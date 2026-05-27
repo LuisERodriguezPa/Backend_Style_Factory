@@ -80,7 +80,7 @@ public class AuthController {
         );
 
         Usuario usuario = (Usuario) authentication.getPrincipal();
-        String token = jwtUtil.generateToken(usuario);
+        String token = jwtUtil.generarToken(usuario);
 
         return ResponseEntity.ok(Map.of(
                 "token", token,
