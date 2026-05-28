@@ -50,7 +50,7 @@ public class SecurityConfig {
                         // Endpoints restringidos por rol
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/servicios/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/servicios/**").hasRole("admin")
+                        .requestMatchers(HttpMethod.POST, "/servicios/**").hasRole("ADMIN")
                         .requestMatchers("/empleados/**").hasAnyRole("ADMIN", "EMPLEADO")
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
